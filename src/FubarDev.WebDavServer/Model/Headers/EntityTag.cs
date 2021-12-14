@@ -9,14 +9,19 @@ using System.Text;
 using System.Xml.Linq;
 
 using FubarDev.WebDavServer.Props.Dead;
-using FubarDev.WebDavServer.Utils;
+
+using Parlot.Fluent;
+
+using static Parlot.Fluent.Parsers;
+
+using Parsers = FubarDev.WebDavServer.Utils.Parsers;
 
 namespace FubarDev.WebDavServer.Model.Headers
 {
     /// <summary>
     /// Structure for the HTTP entity tag.
     /// </summary>
-    public struct EntityTag : IEquatable<EntityTag>
+    public readonly struct EntityTag : IEquatable<EntityTag>
     {
         /// <summary>
         /// The default property name for the <c>getetag</c> WebDAV property.
@@ -32,7 +37,12 @@ namespace FubarDev.WebDavServer.Model.Headers
         {
         }
 
-        private EntityTag(bool isWeak, string value)
+        /// <summary>
+        /// Initializes a new instance of the <see cref="EntityTag"/> struct.
+        /// </summary>
+        /// <param name="isWeak">Indicates whether the entity tag is weak.</param>
+        /// <param name="value">The entity tags value.</param>
+        internal EntityTag(bool isWeak, string value)
         {
             IsWeak = isWeak;
             Value = value;
@@ -100,14 +110,7 @@ namespace FubarDev.WebDavServer.Model.Headers
         /// <returns>The found entity tags.</returns>
         public static IEnumerable<EntityTag> Parse(string s)
         {
-            var source = new StringSource(s);
-            var result = Parse(source).ToList();
-            if (!source.Empty)
-            {
-                throw new ArgumentException($@"{source.Remaining} is not a valid ETag", nameof(source));
-            }
-
-            return result;
+            return Parsers.EntityTags.Parse(s);
         }
 
         /// <summary>
@@ -176,44 +179,6 @@ namespace FubarDev.WebDavServer.Model.Headers
         {
             return Value.GetHashCode()
                 ^ IsWeak.GetHashCode();
-        }
-
-        internal static IEnumerable<EntityTag> Parse(StringSource source)
-        {
-            while (!source.SkipWhiteSpace())
-            {
-                bool isWeak;
-                if (source.AdvanceIf("W/\"", StringComparison.OrdinalIgnoreCase))
-                {
-                    isWeak = true;
-                }
-                else if (!source.AdvanceIf("\""))
-                {
-                    break;
-                }
-                else
-                {
-                    isWeak = false;
-                }
-
-                var etagText = source.GetUntil('"');
-                if (etagText == null)
-                {
-                    throw new ArgumentException($@"{source.Remaining} is not a valid ETag", nameof(source));
-                }
-
-                yield return new EntityTag(isWeak, etagText);
-
-                if (source.Advance(1).SkipWhiteSpace())
-                {
-                    break;
-                }
-
-                if (!source.AdvanceIf(","))
-                {
-                    break;
-                }
-            }
         }
     }
 }

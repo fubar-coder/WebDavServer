@@ -36,7 +36,11 @@ namespace FubarDev.WebDavServer.Handlers.Impl
         /// <param name="rootFileSystem">The root file system.</param>
         /// <param name="lockManager">The lock manager.</param>
         /// <param name="timeoutPolicy">The timeout policy for the selection of the <see cref="TimeoutHeader"/> value.</param>
-        public LockHandler(IWebDavContextAccessor contextAccessor, IFileSystem rootFileSystem, ILockManager? lockManager = null, ITimeoutPolicy? timeoutPolicy = null)
+        public LockHandler(
+            IWebDavContextAccessor contextAccessor,
+            IFileSystem rootFileSystem,
+            ILockManager? lockManager = null,
+            ITimeoutPolicy? timeoutPolicy = null)
         {
             _contextAccessor = contextAccessor;
             _rootFileSystem = rootFileSystem;
@@ -192,11 +196,6 @@ namespace FubarDev.WebDavServer.Handlers.Impl
             if (_lockManager == null)
             {
                 throw new NotSupportedException();
-            }
-
-            if (ifHeader.Lists.Any(x => x.Path.IsAbsoluteUri))
-            {
-                throw new InvalidOperationException("A Resource-Tag pointing to a different server or application isn't supported.");
             }
 
             var timeout = _timeoutPolicy?.SelectTimeout(

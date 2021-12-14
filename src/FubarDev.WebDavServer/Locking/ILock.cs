@@ -13,7 +13,7 @@ namespace FubarDev.WebDavServer.Locking
     public interface ILock
     {
         /// <summary>
-        /// Gets the path the lock is for.
+        /// Gets the path the lock is for, relative to the root file system.
         /// </summary>
         string Path { get; }
 

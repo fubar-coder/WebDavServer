@@ -71,7 +71,7 @@ namespace FubarDev.WebDavServer.AspNetCore
             _publicRelativeRequestUrl = _publicRootUrl.MakeRelativeUri(_publicAbsoluteRequestUrl);
             _controllerRelativeUrl = GetControllerRelativeUrl(httpContext, _serviceBaseUrl, _serviceAbsoluteRequestUrl);
             _publicControllerUrl = new Uri(_publicBaseUrl, _controllerRelativeUrl);
-            _requestHeaders = new WebDavRequestHeaders(httpContext.Request.Headers, this);
+            _requestHeaders = new WebDavRequestHeaders(httpContext.Request.Headers);
             _detectedClient = DetectClient(httpContext);
             _principal = httpContext.User;
             _dispatcher = new Lazy<IWebDavDispatcher>(_httpContext.RequestServices.GetRequiredService<IWebDavDispatcher>);

@@ -14,6 +14,7 @@ using FubarDev.WebDavServer.FileSystem;
 using FubarDev.WebDavServer.Formatters;
 using FubarDev.WebDavServer.Handlers;
 using FubarDev.WebDavServer.Locking;
+using FubarDev.WebDavServer.Preconditions;
 using FubarDev.WebDavServer.Props;
 using FubarDev.WebDavServer.Props.Dead;
 using FubarDev.WebDavServer.Props.Store;
@@ -81,6 +82,7 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddSingleton<IMimeTypeDetector, DefaultMimeTypeDetector>();
             services.TryAddSingleton<IEntryPropertyInitializer, DefaultEntryPropertyInitializer>();
             services.TryAddSingleton<IBufferPoolFactory, ArrayPoolBufferPoolFactory>();
+            services.TryAddSingleton<IResourceInformationAccessor, HttpContextResourceInformationAccessor>();
             services
                 .AddOptions()
                 .AddScoped(sp => sp.GetRequiredService<IWebDavContextAccessor>().WebDavContext)

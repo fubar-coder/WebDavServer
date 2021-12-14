@@ -29,9 +29,9 @@ namespace FubarDev.WebDavServer
         bool? Overwrite { get; }
 
         /// <summary>
-        /// Gets the <c>If</c> header.
+        /// Gets the <c>If</c> header(s).
         /// </summary>
-        IfHeader? If { get; }
+        IReadOnlyCollection<IfHeader>? If { get; }
 
         /// <summary>
         /// Gets the <c>If-Match</c> header.

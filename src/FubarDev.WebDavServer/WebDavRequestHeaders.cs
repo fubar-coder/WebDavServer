@@ -4,10 +4,12 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Xml;
 
 using FubarDev.WebDavServer.Model.Headers;
+using FubarDev.WebDavServer.Utils;
 
 using Microsoft.AspNetCore.Http;
 
@@ -24,14 +26,13 @@ namespace FubarDev.WebDavServer
         /// Initializes a new instance of the <see cref="WebDavRequestHeaders"/> class.
         /// </summary>
         /// <param name="headers">The headers to parse.</param>
-        /// <param name="context">The WebDAV request context.</param>
-        public WebDavRequestHeaders(IHeaderDictionary headers, IWebDavContext context)
+        public WebDavRequestHeaders(IHeaderDictionary headers)
         {
             Headers = headers.ToDictionary(x => x.Key, x => (IReadOnlyCollection<string>)x.Value.ToList(), StringComparer.OrdinalIgnoreCase);
             Depth = ParseHeader("Depth", args => DepthHeader.Parse(args.Single()));
             Overwrite = ParseValueHeader("Overwrite", args => OverwriteHeader.Parse(args.Single()));
             Range = ParseHeader("Range", RangeHeader.Parse);
-            If = ParseHeader("If", args => IfHeader.Parse(args.Single(), EntityTagComparer.Strong, context));
+            If = ParseHeaders("If", arg => Parsers.IfHeader.Parse(arg));
             IfMatch = ParseHeader("If-Match", IfMatchHeader.Parse);
             IfNoneMatch = ParseHeader("If-None-Match", IfNoneMatchHeader.Parse);
             IfModifiedSince = ParseHeader("If-Modified-Since", args => IfModifiedSinceHeader.Parse(args.Single()));
@@ -50,7 +51,7 @@ namespace FubarDev.WebDavServer
         public bool? Overwrite { get; }
 
         /// <inheritdoc />
-        public IfHeader? If { get; }
+        public IReadOnlyCollection<IfHeader>? If { get; }
 
         /// <inheritdoc />
         public IfMatchHeader? IfMatch { get; }
@@ -113,6 +114,18 @@ namespace FubarDev.WebDavServer
             }
 
             return defaultValue;
+        }
+
+        private IReadOnlyCollection<T>? ParseHeaders<T>(
+            string name,
+            Func<string, T> createFunc)
+        {
+            if (Headers.TryGetValue(name, out var v))
+            {
+                return v.Select(createFunc).ToImmutableList();
+            }
+
+            return null;
         }
     }
 }

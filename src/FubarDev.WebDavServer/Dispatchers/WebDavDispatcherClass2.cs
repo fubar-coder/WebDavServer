@@ -112,7 +112,11 @@ namespace FubarDev.WebDavServer.Dispatchers
         }
 
         /// <inheritdoc />
-        public Task<IWebDavResult> RefreshLockAsync(string path, IfHeader ifHeader, TimeoutHeader? timeoutHeader, CancellationToken cancellationToken)
+        public Task<IWebDavResult> RefreshLockAsync(
+            string path,
+            IfHeader ifHeader,
+            TimeoutHeader? timeoutHeader,
+            CancellationToken cancellationToken)
         {
             if (_lockHandler == null)
             {

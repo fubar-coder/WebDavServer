@@ -3,13 +3,14 @@
 // </copyright>
 
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
 using FubarDev.WebDavServer.AspNetCore.Filters;
 using FubarDev.WebDavServer.AspNetCore.Routing;
 using FubarDev.WebDavServer.Model;
-using FubarDev.WebDavServer.Model.Headers;
+using FubarDev.WebDavServer.Utils;
 
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -238,11 +239,14 @@ namespace FubarDev.WebDavServer.AspNetCore
             if (lockinfo == null)
             {
                 // Refresh
-                var ifHeader = _context.RequestHeaders.If;
-                if (ifHeader == null || ifHeader.Lists.Count == 0)
+                var ifHeaders = _context.RequestHeaders.If;
+                if (ifHeaders == null || ifHeaders.Count != 1)
                 {
                     return BadRequest();
                 }
+
+                // We only accept a single "If" header
+                var ifHeader = ifHeaders.Single();
 
                 var timeoutHeader = _context.RequestHeaders.Timeout;
                 result = await _dispatcher.Class2.RefreshLockAsync(
@@ -287,7 +291,7 @@ namespace FubarDev.WebDavServer.AspNetCore
                     _responseLogger);
             }
 
-            var lt = LockTokenHeader.Parse(lockToken);
+            var lt = Parsers.LockTokenHeader.Parse(lockToken);
             var result = await _dispatcher.Class2.UnlockAsync(path ?? string.Empty, lt, cancellationToken)
                 .ConfigureAwait(false);
             return new WebDavIndirectResult(_context, result, _responseLogger);

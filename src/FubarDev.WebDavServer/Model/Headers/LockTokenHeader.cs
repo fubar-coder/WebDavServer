@@ -4,8 +4,6 @@
 
 using System;
 
-using FubarDev.WebDavServer.Properties;
-
 namespace FubarDev.WebDavServer.Model.Headers
 {
     /// <summary>
@@ -26,23 +24,6 @@ namespace FubarDev.WebDavServer.Model.Headers
         /// Gets the lock token.
         /// </summary>
         public Uri StateToken { get; }
-
-        /// <summary>
-        /// Parses the header string to get a new instance of the <see cref="LockTokenHeader"/> class.
-        /// </summary>
-        /// <param name="s">The header string to parse.</param>
-        /// <returns>The new instance of the <see cref="LockTokenHeader"/> class.</returns>
-        public static LockTokenHeader Parse(string s)
-        {
-            if (!CodedUrlParser.TryParse(s, out var stateToken))
-            {
-                throw new ArgumentException(
-                    string.Format(Resources.InvalidLockTokenFormat, s),
-                    nameof(s));
-            }
-
-            return new LockTokenHeader(stateToken);
-        }
 
         /// <inheritdoc />
         public override string ToString()

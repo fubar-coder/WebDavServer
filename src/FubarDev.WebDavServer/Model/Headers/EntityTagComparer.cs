@@ -25,19 +25,24 @@ namespace FubarDev.WebDavServer.Model.Headers
         /// <summary>
         /// Gets a default strong entity tag comparer.
         /// </summary>
-        public static EntityTagComparer Strong { get; } = new EntityTagComparer(true);
+        public static EntityTagComparer Strong { get; } = new(true);
 
         /// <summary>
         /// Gets a default weak entity tag comparer.
         /// </summary>
-        public static EntityTagComparer Weak { get; } = new EntityTagComparer(false);
+        public static EntityTagComparer Weak { get; } = new(false);
 
         /// <inheritdoc />
         public bool Equals(EntityTag x, EntityTag y)
         {
             if (_useStrongComparison)
             {
-                return x.Value == y.Value && x.IsWeak == y.IsWeak && !x.IsWeak;
+                return !x.IsWeak && x.Value == y.Value && x.IsWeak == y.IsWeak;
+            }
+
+            if (x.IsWeak && !y.IsWeak)
+            {
+                return false;
             }
 
             return x.Value == y.Value;

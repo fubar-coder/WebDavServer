@@ -28,7 +28,7 @@ namespace FubarDev.WebDavServer.Locking
     /// </remarks>
     public abstract class LockManagerBase : ILockManager
     {
-        private static readonly Uri _baseUrl = new Uri("http://localhost/");
+        private readonly IWebDavContextAccessor _contextAccessor;
 
         private readonly ILockCleanupTask _cleanupTask;
 
@@ -41,13 +41,20 @@ namespace FubarDev.WebDavServer.Locking
         /// <summary>
         /// Initializes a new instance of the <see cref="LockManagerBase"/> class.
         /// </summary>
+        /// <param name="contextAccessor">The accessor for the WebDAV context.</param>
         /// <param name="cleanupTask">The clean-up task for expired locks.</param>
         /// <param name="systemClock">The system clock interface.</param>
         /// <param name="logger">The logger.</param>
         /// <param name="options">The options of the lock manager.</param>
-        protected LockManagerBase(ILockCleanupTask cleanupTask, ISystemClock systemClock, ILogger logger, ILockManagerOptions? options = null)
+        protected LockManagerBase(
+            IWebDavContextAccessor contextAccessor,
+            ILockCleanupTask cleanupTask,
+            ISystemClock systemClock,
+            ILogger logger,
+            ILockManagerOptions? options = null)
         {
             _rounding = options?.Rounding ?? new DefaultLockTimeRounding(DefaultLockTimeRoundingMode.OneSecond);
+            _contextAccessor = contextAccessor;
             _cleanupTask = cleanupTask;
             _systemClock = systemClock;
             _logger = logger;
@@ -130,12 +137,13 @@ namespace FubarDev.WebDavServer.Locking
         /// <inheritdoc />
         public async Task<LockResult> LockAsync(ILock requestedLock, CancellationToken cancellationToken)
         {
+            var context = _contextAccessor.WebDavContext;
             ActiveLock newActiveLock;
-            var destinationUrl = BuildUrl(requestedLock.Path);
+            var destinationUrl = BuildUrl(context, requestedLock.Path);
             using (var transaction = await BeginTransactionAsync(cancellationToken).ConfigureAwait(false))
             {
                 var locks = await transaction.GetActiveLocksAsync(cancellationToken).ConfigureAwait(false);
-                var status = Find(locks, destinationUrl, requestedLock.Recursive, true);
+                var status = Find(context, locks, destinationUrl, requestedLock.Recursive, true);
                 var conflictingLocks = GetConflictingLocks(status, requestedLock);
                 if (conflictingLocks.Count != 0)
                 {
@@ -166,19 +174,21 @@ namespace FubarDev.WebDavServer.Locking
         /// <inheritdoc />
         public async Task<IImplicitLock> LockImplicitAsync(
             IFileSystem rootFileSystem,
-            IReadOnlyCollection<IfHeaderList>? ifHeaderLists,
+            IReadOnlyCollection<IfHeader>? ifHeaders,
             ILock lockRequirements,
             CancellationToken cancellationToken)
         {
-            if (ifHeaderLists == null || ifHeaderLists.Count == 0)
+            if (ifHeaders == null)
             {
                 var newLock = await LockAsync(lockRequirements, cancellationToken).ConfigureAwait(false);
                 return new ImplicitLock(this, newLock);
             }
 
+            var context = _contextAccessor.WebDavContext;
             var successfulConditions = await FindMatchingIfConditionListAsync(
+                context,
                 rootFileSystem,
-                ifHeaderLists,
+                ifHeaders,
                 lockRequirements,
                 cancellationToken).ConfigureAwait(false);
             if (successfulConditions == null)
@@ -555,18 +565,19 @@ namespace FubarDev.WebDavServer.Locking
 
 #if USE_VARIANT_2
         private async Task<IReadOnlyCollection<PathConditions>?> FindMatchingIfConditionListAsync(
+            IWebDavContext context,
             IFileSystem rootFileSystem,
-            IReadOnlyCollection<IfHeaderList> ifHeaderLists,
+            IReadOnlyCollection<IfHeader> ifHeaders,
             ILock lockRequirements,
             CancellationToken cancellationToken)
         {
-            var lockRequirementUrl = BuildUrl(lockRequirements.Path);
+            var lockRequirementUrl = BuildUrl(context, lockRequirements.Path);
 
             IReadOnlyCollection<IActiveLock> affectingLocks;
             using (var transaction = await BeginTransactionAsync(cancellationToken).ConfigureAwait(false))
             {
                 var locks = await transaction.GetActiveLocksAsync(cancellationToken).ConfigureAwait(false);
-                var lockStatus = Find(locks, lockRequirementUrl, false, true);
+                var lockStatus = Find(context, locks, lockRequirementUrl, false, true);
                 affectingLocks = lockStatus.ParentLocks.Concat(lockStatus.ReferenceLocks).ToList();
             }
 
@@ -633,7 +644,12 @@ namespace FubarDev.WebDavServer.Locking
         }
 #endif
 
-        private LockStatus Find(IEnumerable<IActiveLock> locks, Uri parentUrl, bool withChildren, bool findParents)
+        private LockStatus Find(
+            IWebDavContext context,
+            IEnumerable<IActiveLock> locks,
+            Uri parentUrl,
+            bool withChildren,
+            bool findParents)
         {
             var normalizedParentUrl = NormalizePath(parentUrl);
             var refLocks = new List<IActiveLock>();
@@ -642,7 +658,7 @@ namespace FubarDev.WebDavServer.Locking
 
             foreach (var activeLock in locks)
             {
-                var lockUrl = BuildUrl(activeLock.Path);
+                var lockUrl = BuildUrl(context, activeLock.Path);
                 var normalizedLockUrl = NormalizePath(lockUrl);
                 var result = Compare(normalizedParentUrl, withChildren, normalizedLockUrl, activeLock.Recursive);
                 switch (result)
@@ -683,14 +699,22 @@ namespace FubarDev.WebDavServer.Locking
             return LockCompareResult.NoMatch;
         }
 
-        private Uri BuildUrl(string path)
+        /// <summary>
+        /// Builds the absolute URL for the given path.
+        /// </summary>
+        /// <param name="context">The current context.</param>
+        /// <param name="path">The path, relative to the root file system.</param>
+        /// <returns>The absolute URL.</returns>
+        private Uri BuildUrl(
+            IWebDavContext context,
+            string path)
         {
             if (string.IsNullOrEmpty(path))
             {
-                return _baseUrl;
+                return context.PublicControllerUrl;
             }
 
-            return new Uri(_baseUrl, path + (path.EndsWith("/") ? string.Empty : "/"));
+            return new Uri(context.PublicControllerUrl, path + (path.EndsWith("/") ? string.Empty : "/"));
         }
 
         private class PathInfo
